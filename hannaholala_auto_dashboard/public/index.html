@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Traffic Dashboard — hannaholala.com</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f7f7f7;color:#1a1a1a}
+header{background:#fff;border-bottom:1px solid #eee;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;position:sticky;top:0;z-index:10}
+.logo{font-size:16px;font-weight:700;color:#7F77DD}
+.logo span{color:#888;font-weight:400;font-size:13px;margin-left:8px}
+.hdr{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.btn{padding:7px 14px;border-radius:8px;border:1px solid #7F77DD;background:#EEEDFE;color:#534AB7;font-size:13px;cursor:pointer}
+.btn:hover{background:#e0dffe}
+.ts{font-size:12px;color:#888}
+select{padding:6px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff;cursor:pointer}
+main{max-width:1200px;margin:0 auto;padding:24px}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px}
+.kpi{background:#fff;border-radius:12px;padding:18px;border:1px solid #eee}
+.kpi label{font-size:11px;color:#888;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.kpi .val{font-size:24px;font-weight:700}
+.kpi .chg{font-size:12px;margin-top:4px}
+.up{color:#1D9E75}.down{color:#E24B4A}.neu{color:#aaa}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+.card{background:#fff;border-radius:12px;border:1px solid #eee;padding:20px;margin-bottom:20px}
+.ct{font-size:14px;font-weight:600;color:#555;margin-bottom:16px}
+.tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.tab{padding:8px 18px;border-radius:8px;border:1px solid #ddd;background:#f5f5f5;font-size:13px;cursor:pointer;color:#555}
+.tab.active{background:#EEEDFE;color:#534AB7;border-color:#AFA9EC;font-weight:600}
+.view{display:none}.view.active{display:block}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;font-weight:500;color:#888;font-size:11px;border-bottom:1px solid #eee;white-space:nowrap}
+th:not(:first-child){text-align:right}
+td{padding:10px;border-bottom:1px solid #f5f5f5;vertical-align:middle}
+td:not(:first-child){text-align:right;color:#555}
+.bw{background:#f0f0f0;border-radius:3px;height:4px;margin-top:4px}
+.bf{height:4px;border-radius:3px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px;flex-shrink:0}
+.cw{position:relative;height:240px}
+.fr{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.fr input{padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;flex:1;min-width:180px}
+.sb{padding:7px 16px;border-radius:8px;border:1px solid #7F77DD;background:#EEEDFE;color:#534AB7;font-size:13px;cursor:pointer;white-space:nowrap}
+#status{padding:14px 18px;background:#f0f0f0;border-radius:10px;font-size:13px;color:#666;margin-bottom:20px}
+.leg{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.leg span{display:flex;align-items:center;gap:5px;font-size:12px;color:#666}
+.pc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:700px){.g2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">hannaholala.com <span>Live Traffic Dashboard</span></div>
+  <div class="hdr">
+    <select id="dr" onchange="loadAll()">
+      <option value="7daysAgo">7 ngày</option>
+      <option value="30daysAgo" selected>30 ngày</option>
+      <option value="90daysAgo">90 ngày</option>
+    </select>
+    <span class="ts" id="ts"></span>
+    <button class="btn" onclick="loadAll()">↻ Refresh</button>
+  </div>
+</header>
+<main>
+  <div id="status">⏳ Đang kết nối Google Analytics...</div>
+  <div id="app" style="display:none">
+    <div class="kpi-grid" id="kpis"></div>
+    <div class="tabs">
+      <button class="tab active" onclick="sw(0)">Tổng quan</button>
+      <button class="tab" onclick="sw(1)">Collections</button>
+      <button class="tab" onclick="sw(2)">Nguồn traffic</button>
+      <button class="tab" onclick="sw(3)">Tìm URL</button>
+    </div>
+    <div id="v0" class="view active">
+      <div class="g2">
+        <div class="card"><p class="ct">Sessions theo ngày</p><div class="cw"><canvas id="dc" role="img" aria-label="Sessions theo ngày"></canvas></div></div>
+        <div class="card"><p class="ct">Kênh traffic</p><div class="leg" id="cl"></div><div class="cw"><canvas id="cc" role="img" aria-label="Kênh traffic"></canvas></div></div>
+      </div>
+      <div class="card"><p class="ct">Thiết bị</p><div class="cw" style="height:140px"><canvas id="devc" role="img" aria-label="Thiết bị"></canvas></div></div>
+    </div>
+    <div id="v1" class="view">
+      <div class="card"><p class="ct">Traffic theo danh mục</p><div class="cw" style="height:300px"><canvas id="catc" role="img" aria-label="Danh mục"></canvas></div></div>
+      <div class="card"><p class="ct">Top trang /collections</p>
+        <div class="fr"><input type="text" id="cs" placeholder="Tìm URL..." oninput="ft('ct0','cs')"></div>
+        <table><thead><tr><th style="width:42%">URL</th><th>Views</th><th>Sessions</th><th>Người mới</th><th>Bounce</th><th>Thời gian</th></tr></thead><tbody id="ct0"></tbody></table>
+      </div>
+    </div>
+    <div id="v2" class="view">
+      <div class="card"><p class="ct">Source / Medium</p>
+        <table><thead><tr><th>Nguồn</th><th>Medium</th><th>Sessions</th><th>%</th><th>Người mới</th><th>Bounce</th><th>Thời gian</th></tr></thead><tbody id="smt"></tbody></table>
+      </div>
+      <div class="card"><p class="ct">Referral domains</p><div id="refc"></div></div>
+    </div>
+    <div id="v3" class="view">
+      <div class="card"><p class="ct">Tìm hiệu suất URL bất kỳ</p>
+        <div class="fr">
+          <input type="text" id="ui" placeholder="VD: /collections/my-pham-05-2026">
+          <button class="sb" onclick="su()">Tìm kiếm</button>
+        </div>
+        <div id="ur"></div>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+// Tự động gọi Netlify Function — không cần token trong frontend!
+const API = "/.netlify/functions/ga4";
+const COLORS=["#7F77DD","#1D9E75","#D85A30","#378ADD","#BA7517","#D4537E","#639922","#E24B4A","#888780","#5DCAA5","#AFA9EC","#9FE1CB"];
+const CATS=[{k:"my-pham",l:"Mỹ phẩm"},{k:"cham-soc-toc",l:"Chăm sóc tóc"},{k:"sua-tam",l:"Sữa tắm"},{k:"nuoc-hoa",l:"Nước hoa"},{k:"chong-nang",l:"Chống nắng"},{k:"tay-trang",l:"Tẩy trang"},{k:"thuc-pham",l:"Thực phẩm"},{k:"sua-",l:"Sữa & dinh dưỡng"},{k:"deal",l:"Deal/KM"},{k:"hannah",l:"Hannah's Best"}];
+let ch={};
+const fmt=n=>Math.round(Number(n)).toLocaleString("vi-VN");
+const pct=(a,t)=>t>0?((Number(a)/t)*100).toFixed(1)+"%":"0%";
+const dur=s=>{s=Math.round(Number(s));return Math.floor(s/60)+"m "+(s%60)+"s"};
+const br=n=>(Number(n)*100).toFixed(1)+"%";
+const nm=s=>s==="(not set)"?"direct":s;
+
+async function q(body){
+  const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const d=await r.json();
+  if(d.error) throw new Error(JSON.stringify(d.error));
+  return d;
+}
+function sw(i){
+  document.querySelectorAll(".view").forEach((v,j)=>v.classList.toggle("active",j===i));
+  document.querySelectorAll(".tab").forEach((t,j)=>t.classList.toggle("active",j===i));
+}
+function ft(id,inp){
+  const v=document.getElementById(inp).value.toLowerCase();
+  document.querySelectorAll("#"+id+" tr").forEach(tr=>tr.style.display=tr.innerText.toLowerCase().includes(v)?"":"none");
+}
+function dc2(id){if(ch[id]){ch[id].destroy();delete ch[id];}}
+function rt(id,rows,dc3,fns){
+  const el=document.getElementById(id);
+  if(!rows||!rows.length){el.innerHTML='<tr><td colspan="10" style="color:#aaa;padding:16px">Không có dữ liệu</td></tr>';return;}
+  const tot=rows.reduce((s,r)=>s+Number(r.metricValues[0].value),0);
+  const mx=Number(rows[0].metricValues[0].value)||1;
+  el.innerHTML=rows.map((row,i)=>{
+    const d=row.dimensionValues.map(x=>nm(x.value));
+    const m=row.metricValues.map(x=>x.value);
+    const bw=Math.max(2,(Number(m[0])/mx*100)).toFixed(0);
+    let c=`<td><div style="display:flex;align-items:center;gap:6px"><span class="dot" style="background:${COLORS[i%COLORS.length]}"></span><span class="pc" title="${d[0]}">${d[0]}</span></div><div class="bw" style="margin-left:16px"><div class="bf" style="width:${bw}%;background:${COLORS[i%COLORS.length]}"></div></div></td>`;
+    if(dc3>1)c+=`<td>${d[1]||""}</td>`;
+    c+=`<td><strong>${fmt(m[0])}</strong></td><td>${pct(m[0],tot)}</td>`;
+    fns.forEach((fn,mi)=>{if(m[mi+1]!==undefined)c+=`<td>${fn(m[mi+1])}</td>`;});
+    return`<tr>${c}</tr>`;
+  }).join("");
+}
+
+async function loadAll(){
+  const range=document.getElementById("dr").value;
+  const prev=range==="7daysAgo"?"14daysAgo":range==="30daysAgo"?"60daysAgo":"180daysAgo";
+  const pe=range==="7daysAgo"?"8daysAgo":range==="30daysAgo"?"31daysAgo":"91daysAgo";
+  document.getElementById("status").style.display="block";
+  document.getElementById("status").textContent="⏳ Đang tải dữ liệu...";
+  try{
+    const[ov,dy,kh,dv,col,sm,ref]=await Promise.all([
+      q({dateRanges:[{startDate:range,endDate:"today"},{startDate:prev,endDate:pe}],metrics:[{name:"sessions"},{name:"activeUsers"},{name:"newUsers"},{name:"bounceRate"},{name:"averageSessionDuration"}]}),
+      q({dateRanges:[{startDate:range,endDate:"today"}],dimensions:[{name:"date"}],metrics:[{name:"sessions"}],orderBys:[{dimension:{dimensionName:"date"}}]}),
+      q({dateRanges:[{startDate:range,endDate:"today"}],dimensions:[{name:"sessionDefaultChannelGroup"}],metrics:[{name:"sessions"},{name:"newUsers"}],orderBys:[{metric:{metricName:"sessions"},desc:true}]}),
+      q({dateRanges:[{startDate:range,endDate:"today"}],dimensions:[{name:"deviceCategory"}],metrics:[{name:"sessions"}]}),
+      q({dateRanges:[{startDate:range,endDate:"today"}],dimensions:[{name:"pagePath"}],metrics:[{name:"screenPageViews"},{name:"sessions"},{name:"newUsers"},{name:"bounceRate"},{name:"averageSessionDuration"}],dimensionFilter:{filter:{fieldName:"pagePath",stringFilter:{matchType:"BEGINS_WITH",value:"/collections"}}},orderBys:[{metric:{metricName:"screenPageViews"},desc:true}],limit:50}),
+      q({dateRanges:[{startDate:range,endDate:"today"}],dimensions:[{name:"sessionSource"},{name:"sessionMedium"}],metrics:[{name:"sessions"},{name:"newUsers"},{name:"bounceRate"},{name:"averageSessionDuration"}],orderBys:[{metric:{metricName:"sessions"},desc:true}],limit:20}),
+      q({dateRanges:[{startDate:range,endDate:"today"}],dimensions:[{name:"sessionSource"}],metrics:[{name:"sessions"},{name:"newUsers"},{name:"bounceRate"}],dimensionFilter:{filter:{fieldName:"sessionMedium",stringFilter:{matchType:"EXACT",value:"referral"}}},orderBys:[{metric:{metricName:"sessions"},desc:true}],limit:10})
+    ]);
+
+    document.getElementById("status").style.display="none";
+    document.getElementById("app").style.display="block";
+    document.getElementById("ts").textContent="Cập nhật: "+new Date().toLocaleTimeString("vi-VN");
+
+    // KPIs
+    const r0=ov.rows[0]?.metricValues||[],r1=ov.rows[1]?.metricValues||[];
+    const s0=Number(r0[0]?.value||0),s1=Number(r1[0]?.value||0);
+    const u0=Number(r0[1]?.value||0),u1=Number(r1[1]?.value||0);
+    document.getElementById("kpis").innerHTML=[
+      {l:"Sessions",v:fmt(s0),c:s1?((s0-s1)/s1*100):null},
+      {l:"Người dùng",v:fmt(u0),c:u1?((u0-u1)/u1*100):null},
+      {l:"Người mới",v:fmt(r0[2]?.value||0),c:null},
+      {l:"Bounce rate",v:br(r0[3]?.value||0),c:null},
+      {l:"Thời gian TB",v:dur(r0[4]?.value||0),c:null}
+    ].map(k=>`<div class="kpi"><label>${k.l}</label><div class="val">${k.v}</div><div class="chg ${k.c===null?'neu':k.c>0?'up':'down'}">${k.c===null?"—":(k.c>0?"↑ ":"↓ ")+Math.abs(k.c).toFixed(1)+"% vs kỳ trước"}</div></div>`).join("");
+
+    // Daily
+    dc2("d");
+    ch["d"]=new Chart(document.getElementById("dc"),{type:"bar",data:{labels:(dy.rows||[]).map(r=>{const d=r.dimensionValues[0].value;return d.slice(4,6)+"/"+d.slice(6);}),datasets:[{data:(dy.rows||[]).map(r=>Number(r.metricValues[0].value)),backgroundColor:"#7F77DD",borderRadius:4,borderSkipped:false}]},options:{plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false,scales:{x:{grid:{display:false},ticks:{maxTicksLimit:10,maxRotation:0}},y:{grid:{color:"rgba(0,0,0,0.05)"},ticks:{maxTicksLimit:5}}}}});
+
+    // Channel donut
+    dc2("c");
+    const cR=kh.rows||[],cL=cR.map(r=>r.dimensionValues[0].value),cD=cR.map(r=>Number(r.metricValues[0].value));
+    document.getElementById("cl").innerHTML=cL.map((l,i)=>`<span><span class="dot" style="background:${COLORS[i%COLORS.length]}"></span>${l}</span>`).join("");
+    ch["c"]=new Chart(document.getElementById("cc"),{type:"doughnut",data:{labels:cL,datasets:[{data:cD,backgroundColor:COLORS,borderWidth:0}]},options:{plugins:{legend:{display:false}},cutout:"65%",responsive:true,maintainAspectRatio:false}});
+
+    // Device
+    dc2("dv");
+    const dvR=dv.rows||[];
+    ch["dv"]=new Chart(document.getElementById("devc"),{type:"bar",data:{labels:dvR.map(r=>r.dimensionValues[0].value),datasets:[{data:dvR.map(r=>Number(r.metricValues[0].value)),backgroundColor:["#7F77DD","#1D9E75","#378ADD"],borderRadius:4,borderSkipped:false}]},options:{indexAxis:"y",plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false,scales:{x:{grid:{color:"rgba(0,0,0,0.05)"}},y:{grid:{display:false}}}}});
+
+    // Collections table + category chart
+    const colR=col.rows||[];
+    rt("ct0",colR,1,[fmt,br,dur]);
+    dc2("cat");
+    const grp={};CATS.forEach(c=>grp[c.l]={v:0});grp["Khác"]={v:0};
+    colR.forEach(row=>{const p=row.dimensionValues[0].value.toLowerCase(),v=Number(row.metricValues[0].value);let m=false;for(const c of CATS){if(p.includes(c.k)){grp[c.l].v+=v;m=true;break;}}if(!m)grp["Khác"].v+=v;});
+    const sg=Object.entries(grp).filter(([,v])=>v.v>0).sort((a,b)=>b[1].v-a[1].v);
+    ch["cat"]=new Chart(document.getElementById("catc"),{type:"bar",data:{labels:sg.map(([l])=>l),datasets:[{data:sg.map(([,v])=>v.v),backgroundColor:COLORS,borderRadius:5,borderSkipped:false}]},options:{indexAxis:"y",plugins:{legend:{display:false}},responsive:true,maintainAspectRatio:false,scales:{x:{grid:{color:"rgba(0,0,0,0.05)"},ticks:{maxTicksLimit:6}},y:{grid:{display:false}}}}});
+
+    // Source/Medium + Referral
+    rt("smt",sm.rows||[],2,[fmt,br,dur]);
+    const refR=ref.rows||[];
+    document.getElementById("refc").innerHTML=refR.length?`<table><thead><tr><th>Domain</th><th>Sessions</th><th>%</th><th>Người mới</th><th>Bounce</th></tr></thead><tbody id="reft"></tbody></table>`:`<p style="color:#aaa;font-size:13px;padding:8px 0">Không có referral traffic</p>`;
+    if(refR.length)rt("reft",refR,1,[fmt,br]);
+
+  }catch(e){
+    document.getElementById("status").innerHTML="❌ Lỗi: "+e.message;
+  }
+}
+
+async function su(){
+  const inp=document.getElementById("ui").value.trim();
+  if(!inp)return;
+  const range=document.getElementById("dr").value;
+  document.getElementById("ur").innerHTML='<p style="color:#888;font-size:13px;padding:8px 0">Đang tìm...</p>';
+  try{
+    const data=await q({dateRanges:[{startDate:range,endDate:"today"}],dimensions:[{name:"pagePath"}],metrics:[{name:"screenPageViews"},{name:"sessions"},{name:"newUsers"},{name:"bounceRate"},{name:"averageSessionDuration"}],dimensionFilter:{filter:{fieldName:"pagePath",stringFilter:{matchType:"CONTAINS",value:inp}}},orderBys:[{metric:{metricName:"screenPageViews"},desc:true}],limit:20});
+    const rows=data.rows||[];
+    if(!rows.length){document.getElementById("ur").innerHTML=`<p style="color:#aaa;font-size:13px;padding:8px 0">Không tìm thấy kết quả nào cho "${inp}"</p>`;return;}
+    const tot=rows.reduce((s,r)=>s+Number(r.metricValues[0].value),0);
+    document.getElementById("ur").innerHTML=`<p style="font-size:13px;margin-bottom:12px">Tìm thấy <strong>${rows.length}</strong> trang · <strong>${fmt(tot)}</strong> views</p><table><thead><tr><th style="width:45%">URL</th><th>Views</th><th>Sessions</th><th>Người mới</th><th>Bounce</th><th>Thời gian</th></tr></thead><tbody id="utbl"></tbody></table>`;
+    rt("utbl",rows,1,[fmt,br,dur]);
+  }catch(e){document.getElementById("ur").innerHTML=`<p style="color:red;font-size:13px">Lỗi: ${e.message}</p>`;}
+}
+
+// Auto-refresh mỗi 30 phút
+setInterval(loadAll,30*60*1000);
+loadAll();
+</script>
+</body>
+</html>
